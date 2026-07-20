@@ -74,7 +74,7 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
 | 微博视频 | ✅ | ✅ 成功 | 否 | 可支持 |
 | YouTube | ✅ | ✅ 代理复测成功（31 formats，2026-07-20 经 127.0.0.1:19077） | 否 | 直连不通，走代理即可用；建议本项目支持配置代理 |
 | TikTok | ✅ | ⚠️ 有条件可行（2026-07-20 二轮深度复测定性） | — | 根因是代理出口在香港被 TikTok 区域重定向（302→`/hk/about`），非提取器失效；换非 HK 出口预期可用但本机无法验证，见第 7 节 |
-| 抖音 | ✅ | ⚠️ 短链解析 OK，取流需 cookie | 是（fresh cookie，不必登录） | 见下 |
+| 抖音 | ✅ | ✅ **实锤成功**（2026-07-20 独立浏览器实例 fresh cookie，短链+长链均取到元数据） | 是（fresh cookie，不必登录） | 用户无需关闭自己的浏览器，见第 8 节 |
 | 西瓜 | ✅ | ❌ 需 cookie | 是 | 同抖音（字节系反爬） |
 | 小红书 | ✅ | ❌ 无格式返回 | 疑似需要 | 提取器对匿名访问失效 |
 | 爱奇艺 | ✅ | ❌ 提取器失效 | — | 正片 DRM，不建议支持 |
@@ -84,11 +84,11 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
 ### 对抖音的明确结论
 
 - 分享短链（`v.douyin.com/xxx`）**可以被 yt-dlp 正确解析**到视频 ID，链路本身可用；
-- 但字节系反爬要求 fresh cookie（不要求登录）。可行路径：
-  1. **主路径**：接受用户提供的 cookie（yt-dlp `--cookies-from-browser` 或 cookies.txt），抖音/西瓜即可走通；
-  2. **兜底路径**：提示用户手动下载视频后传入本地文件路径（本项目管线对本地文件天然支持）；
-  3. 无 cookie 直取在当前版本**不可行**，不要作为设计假设。
-- 2026-07-20 `--cookies-from-browser` 补测（见第 6 节）：本机 Edge/Chrome 运行中 cookie 数据库被独占锁定，yt-dlp 无法读取（已知上游 issue #7271），Firefox 未安装。**该路径在本机未验证成功**，工程上需引导用户关闭浏览器一次或使用 cookies.txt 导出。
+- 字节系反爬要求 fresh cookie（不要求登录），无 cookie 直取**不可行**；
+- **2026-07-20 实锤：fresh cookie 路径成功**（第 8 节）。可行路径：
+  1. **主路径（已验证）**：独立浏览器实例（独立 `--user-data-dir`）访问抖音生成 fresh cookie → `--cookies-from-browser chrome:<独立profile>` 取流，**用户无需关闭自己正在用的浏览器**；
+  2. cookies.txt 导出同样可行（等价于上述 cookie 集合）；
+  3. **兜底路径**：提示用户手动下载视频后传入本地文件路径（本项目管线对本地文件天然支持）。
 
 ### 对视频号的明确结论
 
@@ -97,7 +97,7 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
 ### 对 llm-video-mcp 的设计建议
 
 - 第一梯队（开箱即用）：Bilibili、腾讯视频、优酷、微博；
-- 第二梯队（需配置）：抖音/西瓜（cookie）、YouTube（代理，2026-07-20 代理复测已成功）、TikTok（代理 + 非 HK 出口节点，见第 7 节）；
+- 第二梯队（需配置）：抖音（fresh cookie，2026-07-20 已实锤，见第 8 节）、西瓜（cookie，同字节系）、YouTube（代理，2026-07-20 代理复测已成功）、TikTok（代理 + 非 HK 出口节点，见第 7 节）；
 - 明确不支持：视频号、快手、爱奇艺（DRM/提取器失效）、小红书（暂缓）；
 - 所有平台统一兜底：接受本地文件路径 —— 这应作为一等公民输入方式写进 MCP 接口。
 
@@ -144,8 +144,30 @@ $ curl ipinfo.io → 194.99.79.32, Hong Kong (AS199524 G-Core Labs)
 
 ### 抖音 cookie 路径复测
 
-- 2026-07-20 第二轮检查：Edge、Chrome 进程**仍在运行**（tasklist 确认），cookie 数据库仍被独占锁定，`--cookies-from-browser` 无法执行，本轮**仍未能实锤**。
-- 维持第 6 节结论：机制可行、唯一阻塞是浏览器运行时锁；推荐 cookies.txt 作为主路径（一次导出、不受锁影响），本地文件兜底。
+- 2026-07-20 第二轮检查：Edge、Chrome 进程**仍在运行**（tasklist 确认），cookie 数据库仍被独占锁定，借用用户浏览器 cookie 的路径不通（上游已知 issue #7271）。
+- **第三轮改用独立浏览器实例路径，已实锤成功，见第 8 节。**
+
+## 8. 抖音实锤：独立浏览器实例 fresh cookie 路径（2026-07-20 第三轮）
+
+思路：不动用户正在使用的浏览器，启动**独立 Chrome 实例**（独立 `--user-data-dir`）访问抖音积累 fresh cookie，关闭该实例后由 yt-dlp 借用其 cookie 库。
+
+实测步骤与结果（yt-dlp nightly 2026.07.14.233956，仅 `--skip-download -J` 取元数据）：
+
+| 步骤 | 结果 |
+|---|---|
+| `chrome.exe --user-data-dir=_spike\chrome-profile` 访问抖音视频页，停留 60–90s | cookie 库生成：7 → 40 个（含 `ttwid`、`s_v_web_id`、`__ac_signature`、`passport_csrf_token`、`odin_tt` 等，**不含登录态**） |
+| 按命令行特征定向结束该实例（PowerShell `CommandLine -like '*chrome-profile*'`，用户浏览器不受影响） | 正常退出 |
+| `--cookies-from-browser "chrome:<独立profile>"` 探测**长链** `douyin.com/video/6950251282489675042` | ✅ `OK Douyin | 哈哈哈，成功了哈哈哈哈哈哈 | 8s | 16 formats` |
+| 同法探测**短链** `v.douyin.com/L5pbfdP/` | ✅ `OK Douyin | 让你在几秒钟之内记住我 | 7s | 10 formats` |
+
+关键细节（真实输出所得）：
+
+- cookie 全为 v10（DPAPI 可解密），yt-dlp 日志 `Extracted 40 cookies from chrome`；未触发 Chrome App-Bound Encryption 问题；
+- **cookie 数量是成败关键**：仅停留 30s 时只有 7 个 cookie，API 返回空（`HTTP 200, 0 bytes`，抖音对签名/校验不足的请求返回空 body）；停留 60–90s 让页面完整加载播放后积累到 40 个才放行；
+- 无需登录，fresh cookie 即可；
+- 测试结束后临时 profile 已删除，未读取/记录任何 cookie 内容，用户浏览器全程未受影响。
+
+**抖音最终结论：✅ 可行且已实锤。** 对本项目的落地形式：agent 自动启动独立浏览器实例采集 fresh cookie（或引导用户提供 cookies.txt），随后 yt-dlp 直取；本地文件兜底保留。
 
 ## 附：复现方式
 
