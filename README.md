@@ -76,5 +76,22 @@
 
 ## 文档
 
+**评分与复盘**
 - [项目组合复盘：评分机制、复刻规律与退出机制（2026-07）](docs/portfolio-review-2026-07.md)
 - [项目组合周评（2026-07-19，六维评分，自动生成）](docs/weekly-score-2026-07-19.md)
+
+**规则与方法**
+- [调研方法论 SOP（蒸馏自高星研究项目）](docs/research-playbook.md)
+- [Agent 协作与升级建议采纳规则](docs/agent-collab-rules.md)
+
+**创意与立项**
+- [每日创意狩猎记录（2026-07-20）](docs/idea-log-2026-07-20.md)
+- [llm-video-mcp MVP 立项方案](docs/mvp-spec-llm-video.md)
+- [视频源可行性实测（llm-video-mcp 前置验证）](docs/video-source-feasibility-2026-07-20.md)
+
+**分发**
+- [头部项目分发材料包（2026-07）](docs/distribution-kit-2026-07.md)
+- [分发执行日志（2026-07-20）](docs/distribution-log-2026-07-20.md)
+
+**业务调研**
+- [微信分销裂变 × 大模型调研 v2（含市场格局与竞品）](docs/research-wechat-distribution-2026-07-20.md)
