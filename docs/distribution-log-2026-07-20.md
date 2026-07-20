@@ -9,6 +9,7 @@ Executed on behalf of shkyyy18 (fully authorized, automated run). Source materia
 | cc-autopilot | e2b-dev/awesome-ai-agents → **redirected** to e2b-dev/awesome-ai-sdks | PR opened | https://github.com/e2b-dev/awesome-ai-sdks/pull/289 |
 | openbid-intel | awesome-selfhosted/awesome-selfhosted | **Skipped — not eligible** | reasons below |
 | kimi-adapter | hesreallyhim/awesome-claude-code | **Skipped — submissions temporarily locked** | reasons below |
+| llm-video-mcp | punkpeye/awesome-mcp-servers | PR opened | https://github.com/punkpeye/awesome-mcp-servers/pull/10513 |
 
 ---
 
@@ -69,6 +70,20 @@ Local proxy that lets the Claude Code VS Code extension run on a Kimi backend by
 - [X] All links are working and publicly accessible
 - [X] This resource is specific to Claude Code
 ```
+
+---
+
+## 4. llm-video-mcp → punkpeye/awesome-mcp-servers — PR opened ✅
+
+- **List selection:** three MCP awesome-list candidates were verified via `gh api` before acting:
+  - `punkpeye/awesome-mcp-servers` (91k stars): actively merging community PRs (3,000+ merged to date, multiple merges on 2026-07-13), has a CONTRIBUTING.md with a documented fast-track for automated agents (`🤖🤖🤖` in the PR title). **Chosen.**
+  - `modelcontextprotocol/servers` (official, 89k stars): **skipped** — its CONTRIBUTING.md states the third-party server list has been retired from the README in favor of the MCP Server Registry, and "New server implementations" are explicitly not accepted. A listing PR would have been rejected by policy. (Registry publication is a separate, package-publishing flow — out of scope for this awesome-list run.)
+  - `wong2/awesome-mcp-servers` (4.2k stars): **skipped** — search shows 0 merged community PRs; not a live submission venue.
+  - `appcypher/awesome-mcp-servers` (5.7k stars): **skipped** — same finding, 0 merged community PRs, last push 2026-05-06.
+- **Action:** forked to `shkyyy18/awesome-mcp-servers`, branch `add-llm-video-mcp`, added a single-line entry to the **Multimedia Process** section in alphabetical position (between `mordor-forge/trident-mcp` and `stabgan/openrouter-mcp-multimodal`), following the list's exact format: `[owner/repo](url) 🐍 🏠 🍎 🪟 🐧 - description`. Pushed via local HTTP proxy; PR opened with the agent fast-track opt-in.
+- **PR:** https://github.com/punkpeye/awesome-mcp-servers/pull/10513 — "Add llm-video-mcp: token-budgeted video understanding for coding agents 🤖🤖🤖"
+- **Entry text:** "Video understanding for coding agents within a token budget: scene-aware ffmpeg frame extraction, VAD-gated faster-whisper transcription, and shot timeline. A token-budget controller reverse-derives frame count, width, and grid from your budget; 3 tools, content-hash cached. `uvx llm-video-mcp`"
+- **Status:** open, awaiting maintainer review. One submission only; if rejected, the outcome will be recorded here without re-submission.
 
 ---
 
