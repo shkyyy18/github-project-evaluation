@@ -73,7 +73,7 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
 | 优酷 | ✅ | ✅ 成功 | 否 | 部分视频加密，属个例 |
 | 微博视频 | ✅ | ✅ 成功 | 否 | 可支持 |
 | YouTube | ✅ | ✅ 代理复测成功（31 formats，2026-07-20 经 127.0.0.1:19077） | 否 | 直连不通，走代理即可用；建议本项目支持配置代理 |
-| TikTok | ✅ | ❌ 代理复测仍失败（反爬 challenge，2026-07-20） | — | 网络已通，败在 `_solve_challenge_and_set_cookies`；已装 curl_cffi 0.15.0 无效，属上游提取器失效，不建议支持 |
+| TikTok | ✅ | ⚠️ 有条件可行（2026-07-20 二轮深度复测定性） | — | 根因是代理出口在香港被 TikTok 区域重定向（302→`/hk/about`），非提取器失效；换非 HK 出口预期可用但本机无法验证，见第 7 节 |
 | 抖音 | ✅ | ⚠️ 短链解析 OK，取流需 cookie | 是（fresh cookie，不必登录） | 见下 |
 | 西瓜 | ✅ | ❌ 需 cookie | 是 | 同抖音（字节系反爬） |
 | 小红书 | ✅ | ❌ 无格式返回 | 疑似需要 | 提取器对匿名访问失效 |
@@ -97,8 +97,8 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
 ### 对 llm-video-mcp 的设计建议
 
 - 第一梯队（开箱即用）：Bilibili、腾讯视频、优酷、微博；
-- 第二梯队（需配置）：抖音/西瓜（cookie）、YouTube（代理，2026-07-20 代理复测已成功）；
-- 明确不支持：视频号、快手、爱奇艺（DRM/提取器失效）、TikTok（代理复测仍败于反爬 challenge，上游失效）、小红书（暂缓）；
+- 第二梯队（需配置）：抖音/西瓜（cookie）、YouTube（代理，2026-07-20 代理复测已成功）、TikTok（代理 + 非 HK 出口节点，见第 7 节）；
+- 明确不支持：视频号、快手、爱奇艺（DRM/提取器失效）、小红书（暂缓）；
 - 所有平台统一兜底：接受本地文件路径 —— 这应作为一等公民输入方式写进 MCP 接口。
 
 ## 6. 代理复测（2026-07-20，系统代理 http://127.0.0.1:19077）
@@ -108,13 +108,44 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
 | 平台 | 复测结果 | 关键信息 |
 |---|---|---|
 | YouTube | ✅ 成功 | `youtube.com/watch?v=dQw4w9WgXcQ`：31 formats、时长 213s、无需登录。首次测试的 `BaW_jenozKc` 报 "Video unavailable" 为该视频本身状态，换公开视频即成功。另有提示：无 JS runtime（deno）时部分格式可能缺失，建议项目侧装 deno |
-| TikTok | ❌ 失败 | 3 个真实 URL 均报 `Unexpected response from webpage request`，堆栈止于 `tiktok.py` `_solve_challenge_and_set_cookies` —— 网络已通，败在 TikTok 反爬 challenge；已在 venv 安装 `curl_cffi 0.15.0`（impersonation 依赖）后重测仍失败，属上游提取器当前失效 |
+| TikTok | ❌ 失败（根因在第 7 节定性为区域重定向） | 3 个真实 URL 均报 `Unexpected response from webpage request`，堆栈止于 `tiktok.py` `_solve_challenge_and_set_cookies`；已在 venv 安装 `curl_cffi 0.15.0`（impersonation 依赖）后重测仍失败 |
 | 抖音（`--cookies-from-browser`） | ⚠️ 未能完成验证 | Edge、Chrome 均在运行，cookie SQLite 数据库被独占锁定（Python 直 copy 与 PowerShell `FileShare.ReadWrite` 均 PermissionError），yt-dlp 报 `Could not copy Chrome cookie database`（上游已知 issue #7271）；Firefox 未安装。**未读取/记录任何 cookie 内容**。可行解法：用户关闭浏览器后重试，或用浏览器扩展导出 cookies.txt 走 `--cookies` |
 
 ### 抖音 cookie 路径最终结论
 
 - yt-dlp 的 `--cookies-from-browser` 机制本身支持 Chromium 系浏览器，本机验证的**唯一阻塞是浏览器运行时独占锁**；
 - 对本项目（本地工具、agent 调用）的工程建议：① 文档引导用户在抓取抖音前关闭浏览器一次（锁释放后即可借用 fresh cookie，无需登录态导出）；② 更稳的做法是支持用户粘贴/放置 cookies.txt（一次导出、长期复用，不受浏览器锁影响）；③ 本地文件兜底保留。
+
+## 7. TikTok 深度复测 + 抖音 cookie 复测（2026-07-20 第二轮）
+
+### TikTok 深度复测：根因定位
+
+穷尽以下路径后完成定性（全程经代理 127.0.0.1:19077，仅取元数据）：
+
+| 尝试 | 结果 |
+|---|---|
+| 升级 yt-dlp 2026.07.04 → nightly `2026.07.14.233956`（`pip install -U --pre`） | 仍报 `Unexpected response from webpage request` |
+| 换 URL 形态：3 个网页长链（hankgreen1 / leenabhushan / cookierun_dev） | 同样报错 |
+| `vm.tiktok.com` 短链 | 测试码 404（未获得有效短链，未形成有效样本） |
+| `--impersonate chrome` | 同样报错 |
+| gh api 检索 yt-dlp 仓库 tiktok 相关 issue（15+ 条 open） | 无同症状系统性故障报告；TikTok 提取器维护活跃，多为常规 bug |
+
+**根因实锤（curl 直接验证，与 yt-dlp 无关）**：
+
+```text
+$ curl -L "https://www.tiktok.com/@hankgreen1/video/7047596209028074758"
+HTTP 200, final: https://www.tiktok.com/hk/about   ← 视频页被 302 到"香港不可用"说明页
+$ curl ipinfo.io → 194.99.79.32, Hong Kong (AS199524 G-Core Labs)
+```
+
+- 本机 VPN 出口在**香港**，而 TikTok 不对香港提供服务，所有视频页被重定向到 `/hk/about`；yt-dlp 拿到的不是挑战页也不是视频页，因此报 "Unexpected response" —— 这是**出口节点区域问题，不是提取器失效**。
+- 结论修正：**TikTok 有条件可行**。yt-dlp 提取器本身正常（issue 区无系统性故障），只需把代理出口切到 TikTok 提供服务地区（美/日/新等）。本机只有一个 HK 出口，未能实测验证非 HK 场景——这是唯一保留的不确定性。
+- 对本项目：TikTok 支持 = 代理 + 出口区域要求，文档写明即可，无需特殊代码。
+
+### 抖音 cookie 路径复测
+
+- 2026-07-20 第二轮检查：Edge、Chrome 进程**仍在运行**（tasklist 确认），cookie 数据库仍被独占锁定，`--cookies-from-browser` 无法执行，本轮**仍未能实锤**。
+- 维持第 6 节结论：机制可行、唯一阻塞是浏览器运行时锁；推荐 cookies.txt 作为主路径（一次导出、不受锁影响），本地文件兜底。
 
 ## 附：复现方式
 
