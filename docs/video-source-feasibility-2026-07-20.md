@@ -72,8 +72,8 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
 | 腾讯视频 | ✅ | ✅ 成功 | 否 | 可支持 |
 | 优酷 | ✅ | ✅ 成功 | 否 | 部分视频加密，属个例 |
 | 微博视频 | ✅ | ✅ 成功 | 否 | 可支持 |
-| YouTube | ✅ | ❌ 网络不可达 | — | 提取器正常；本机（大陆网络）不通，用户有代理时可走 `--proxy` |
-| TikTok | ✅ | ❌ 网络不可达 | — | 同上；另需 `curl_cffi` impersonation 依赖 |
+| YouTube | ✅ | ✅ 代理复测成功（31 formats，2026-07-20 经 127.0.0.1:19077） | 否 | 直连不通，走代理即可用；建议本项目支持配置代理 |
+| TikTok | ✅ | ❌ 代理复测仍失败（反爬 challenge，2026-07-20） | — | 网络已通，败在 `_solve_challenge_and_set_cookies`；已装 curl_cffi 0.15.0 无效，属上游提取器失效，不建议支持 |
 | 抖音 | ✅ | ⚠️ 短链解析 OK，取流需 cookie | 是（fresh cookie，不必登录） | 见下 |
 | 西瓜 | ✅ | ❌ 需 cookie | 是 | 同抖音（字节系反爬） |
 | 小红书 | ✅ | ❌ 无格式返回 | 疑似需要 | 提取器对匿名访问失效 |
@@ -88,6 +88,7 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
   1. **主路径**：接受用户提供的 cookie（yt-dlp `--cookies-from-browser` 或 cookies.txt），抖音/西瓜即可走通；
   2. **兜底路径**：提示用户手动下载视频后传入本地文件路径（本项目管线对本地文件天然支持）；
   3. 无 cookie 直取在当前版本**不可行**，不要作为设计假设。
+- 2026-07-20 `--cookies-from-browser` 补测（见第 6 节）：本机 Edge/Chrome 运行中 cookie 数据库被独占锁定，yt-dlp 无法读取（已知上游 issue #7271），Firefox 未安装。**该路径在本机未验证成功**，工程上需引导用户关闭浏览器一次或使用 cookies.txt 导出。
 
 ### 对视频号的明确结论
 
@@ -96,9 +97,24 @@ yt-dlp 共 1752 个提取器（`--list-extractors` 行数）。
 ### 对 llm-video-mcp 的设计建议
 
 - 第一梯队（开箱即用）：Bilibili、腾讯视频、优酷、微博；
-- 第二梯队（需配置）：抖音/西瓜（cookie）、YouTube/TikTok（代理 + impersonation 依赖）；
-- 明确不支持：视频号、快手、爱奇艺（DRM/提取器失效）、小红书（暂缓）；
+- 第二梯队（需配置）：抖音/西瓜（cookie）、YouTube（代理，2026-07-20 代理复测已成功）；
+- 明确不支持：视频号、快手、爱奇艺（DRM/提取器失效）、TikTok（代理复测仍败于反爬 challenge，上游失效）、小红书（暂缓）；
 - 所有平台统一兜底：接受本地文件路径 —— 这应作为一等公民输入方式写进 MCP 接口。
+
+## 6. 代理复测（2026-07-20，系统代理 http://127.0.0.1:19077）
+
+用户开启 VPN 后复测（`https_proxy`/`http_proxy` 环境变量，yt-dlp 已确认代理生效：`Proxy map: {'http': ..., 'https': ...}`）：
+
+| 平台 | 复测结果 | 关键信息 |
+|---|---|---|
+| YouTube | ✅ 成功 | `youtube.com/watch?v=dQw4w9WgXcQ`：31 formats、时长 213s、无需登录。首次测试的 `BaW_jenozKc` 报 "Video unavailable" 为该视频本身状态，换公开视频即成功。另有提示：无 JS runtime（deno）时部分格式可能缺失，建议项目侧装 deno |
+| TikTok | ❌ 失败 | 3 个真实 URL 均报 `Unexpected response from webpage request`，堆栈止于 `tiktok.py` `_solve_challenge_and_set_cookies` —— 网络已通，败在 TikTok 反爬 challenge；已在 venv 安装 `curl_cffi 0.15.0`（impersonation 依赖）后重测仍失败，属上游提取器当前失效 |
+| 抖音（`--cookies-from-browser`） | ⚠️ 未能完成验证 | Edge、Chrome 均在运行，cookie SQLite 数据库被独占锁定（Python 直 copy 与 PowerShell `FileShare.ReadWrite` 均 PermissionError），yt-dlp 报 `Could not copy Chrome cookie database`（上游已知 issue #7271）；Firefox 未安装。**未读取/记录任何 cookie 内容**。可行解法：用户关闭浏览器后重试，或用浏览器扩展导出 cookies.txt 走 `--cookies` |
+
+### 抖音 cookie 路径最终结论
+
+- yt-dlp 的 `--cookies-from-browser` 机制本身支持 Chromium 系浏览器，本机验证的**唯一阻塞是浏览器运行时独占锁**；
+- 对本项目（本地工具、agent 调用）的工程建议：① 文档引导用户在抓取抖音前关闭浏览器一次（锁释放后即可借用 fresh cookie，无需登录态导出）；② 更稳的做法是支持用户粘贴/放置 cookies.txt（一次导出、长期复用，不受浏览器锁影响）；③ 本地文件兜底保留。
 
 ## 附：复现方式
 
